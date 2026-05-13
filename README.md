@@ -118,4 +118,4 @@ Die Anwendung benötigt folgende API-Schlüssel (kostenlos erhältlich):
 
 ---
 
-*Persönliches Projekt · Hochschule Bremerhaven · 2024*
+*Modul: IT-Services · Hochschule Bremerhaven · 2025*
