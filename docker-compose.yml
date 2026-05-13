@@ -1,0 +1,53 @@
+services:
+
+  mariadb:
+    image: mariadb:11
+    container_name: wetterdienst-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: dbdemo
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: complexpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  build:
+    image: maven:3.9-eclipse-temurin-17
+    container_name: wetterdienst-build
+    volumes:
+      - .:/app
+      - maven_cache:/root/.m2
+    working_dir: /app
+    command: mvn clean package -q
+    profiles:
+      - build
+
+  tomcat:
+    image: tomcat:10-jdk17
+    container_name: wetterdienst-app
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./target/wetterdienst.war:/usr/local/tomcat/webapps/wetterdienst.war
+    environment:
+      - CATALINA_OPTS=-Xms256m -Xmx512m
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+
+volumes:
+  db_data:
+  maven_cache:
