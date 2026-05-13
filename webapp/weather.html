@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wetterdienst Pro</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root { --primary-color: #4361ee; --secondary-color: #3f37c9; }
+    body { background-color: #f4f9fd; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .card { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .weather-card { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%); }
+    h1, h2 { font-weight: 600; color: var(--primary-color); }
+    .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
+    .btn-primary:hover { background-color: var(--secondary-color); border-color: var(--secondary-color); }
+    .weather-icon img { width: 80px; height: 80px; }
+    .ai-message { border-radius: 18px; padding: 8px 16px; margin: 4px 0; max-width: 80%; }
+    .user-message { background-color: #e3f2fd; margin-left: auto; }
+    .bot-message { background-color: #f5f5f5; margin-right: auto; }
+    .loading-spinner { width: 2rem; height: 2rem; }
+    #aiChatHistory { max-height: 300px; overflow-y: auto; margin-bottom: 1rem; }
+    .youtube-thumbnail { width: 120px; height: 90px; object-fit: cover; border-radius: 4px; }
+    #statsContainer { max-width: 800px; margin: 0 auto; }
+    #weatherChart { max-height: 300px !important; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="text-center mb-4"><i class="fas fa-cloud-sun me-2"></i>Wetterdienst Pro</h1>
+
+    <div class="row g-3 mb-4 justify-content-center">
+      <div class="col-md-5">
+        <input id="city" type="text" class="form-control form-control-lg" placeholder="Stadt eingeben" aria-label="Stadtname">
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary btn-lg" onclick="fetchWeatherByCity()">
+          <i class="fas fa-cloud-sun me-1"></i> Wetter
+        </button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-info btn-lg" onclick="fetchForecastByCity()">
+          <i class="fas fa-calendar-alt me-1"></i> 3-Tage
+        </button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-success btn-lg" onclick="fetchWeatherByGeo()">
+          <i class="fas fa-location-arrow me-1"></i> Standort
+        </button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-warning btn-lg" onclick="fetchWeatherStats()">
+          <i class="fas fa-chart-line me-1"></i> Statistik
+        </button>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-secondary btn-lg" onclick="fetchWeatherMusic()">
+          <i class="fas fa-music me-1"></i> Musik
+        </button>
+      </div>
+    </div>
+
+    <div id="loading" class="text-center my-4" style="display:none;">
+      <div class="spinner-border text-primary loading-spinner" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Daten werden geladen...</p>
+    </div>
+
+    <div id="output" class="row g-4 justify-content-center"></div>
+
+    <div id="statsContainer" class="row g-4 justify-content-center mt-4" style="display:none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Temperaturverlauf</h5>
+            <canvas id="weatherChart" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="musicContainer" class="row g-4 justify-content-center mt-4" style="display:none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Musikempfehlungen</h5>
+            <div id="musicTracks" class="list-group"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-5">
+    <h2 class="text-center mb-4"><i class="fas fa-robot me-2"></i>Wetter-Assistent</h2>
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div id="aiChatHistory" class="mb-3"></div>
+        <div id="suggestions" class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-outline-primary btn-sm suggestion-btn">Wie wird das Wetter heute?</button>
+          <button class="btn btn-outline-primary btn-sm suggestion-btn">Brauche ich einen Regenschirm?</button>
+          <button class="btn btn-outline-primary btn-sm suggestion-btn">Was soll ich bei diesem Wetter anziehen?</button>
+          <button class="btn btn-outline-primary btn-sm suggestion-btn">Wie wird das Wochenendwetter?</button>
+        </div>
+        <div class="input-group">
+          <input id="aiInput" type="text" class="form-control form-control-lg"
+                 placeholder="Frage zum Wetter..."
+                 aria-label="Frage zum Wetter">
+          <button class="btn btn-primary btn-lg" onclick="askAI()">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Mistral AI — API-Key wird serverseitig über WeatherAIBotServlet bereitgestellt
+    // Direkte API-Aufrufe erfolgen über /api/ai-bot (Backend)
+
+    let weatherChart = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('city').value = localStorage.getItem('lastCity') || '';
+      document.querySelectorAll('.suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.getElementById('aiInput').value = this.textContent;
+        });
+      });
+      document.getElementById('aiInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') askAI();
+      });
+    });
+
+    async function fetchAndShow(url) {
+      const container = document.getElementById('output');
+      const loading   = document.getElementById('loading');
+      const statsContainer = document.getElementById('statsContainer');
+      const musicContainer = document.getElementById('musicContainer');
+      container.innerHTML = '';
+      statsContainer.style.display = 'none';
+      musicContainer.style.display = 'none';
+      loading.style.display = 'block';
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Fehler: ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        if (data.cod && data.cod !== 200) throw new Error(data.message || 'Unbekannter Fehler');
+        loading.style.display = 'none';
+        if (data.list || Object.keys(data)[0].match(/\d{4}-\d{2}-\d{2}/)) {
+          for (const [day, entries] of Object.entries(data)) {
+            const listItems = entries.map(e => `
+              <li class="d-flex justify-content-between">
+                <span>${e.dt_txt.slice(11,16)} Uhr</span>
+                <span>${e.main.temp.toFixed(1)} °C, ${e.weather[0].description}</span>
+              </li>`).join('');
+            container.innerHTML += `
+              <div class="col-md-4">
+                <div class="card weather-card">
+                  <div class="card-body">
+                    <h5 class="card-title">${new Date(day).toLocaleDateString('de-DE', {weekday:'long'})}</h5>
+                    <ul class="list-unstyled">${listItems}</ul>
+                  </div>
+                </div>
+              </div>`;
+          }
+        } else {
+          const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+          container.innerHTML = `
+            <div class="col-md-6">
+              <div class="card weather-card">
+                <div class="card-body text-center">
+                  <h3 class="card-title">${data.name}</h3>
+                  <div class="weather-icon my-3"><img src="${iconUrl}" alt="${data.weather[0].description}"></div>
+                  <h2 class="display-4">${data.main.temp.toFixed(1)} °C</h2>
+                  <p class="lead">${capitalizeFirstLetter(data.weather[0].description)}</p>
+                  <hr>
+                  <div class="row text-start">
+                    <div class="col-md-6">
+                      <p><i class="fas fa-temperature-low me-2"></i>Gefühlt: ${data.main.feels_like.toFixed(1)} °C</p>
+                      <p><i class="fas fa-tint me-2"></i>Luftfeuchtigkeit: ${data.main.humidity}%</p>
+                    </div>
+                    <div class="col-md-6">
+                      <p><i class="fas fa-wind me-2"></i>Wind: ${(data.wind.speed * 3.6).toFixed(1)} km/h</p>
+                      <p><i class="fas fa-compress-alt me-2"></i>Druck: ${data.main.pressure} hPa</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }
+      } catch (error) {
+        loading.style.display = 'none';
+        showError(error.message);
+      }
+    }
+
+    async function fetchWeatherByCity() {
+      const city = document.getElementById('city').value.trim();
+      if (!validateCityInput(city)) { showError('Bitte geben Sie einen gültigen Stadtnamen ein'); return; }
+      localStorage.setItem('lastCity', city);
+      await fetchAndShow(`/wetterdienst/api/weather?city=${encodeURIComponent(city)}`);
+    }
+
+    async function fetchForecastByCity() {
+      const city = document.getElementById('city').value.trim();
+      if (!validateCityInput(city)) { showError('Bitte geben Sie einen gültigen Stadtnamen ein'); return; }
+      localStorage.setItem('lastCity', city);
+      await fetchAndShow(`/wetterdienst/api/forecast?city=${encodeURIComponent(city)}`);
+    }
+
+    function fetchWeatherByGeo() {
+      if (!navigator.geolocation) { showError('Geolocation wird nicht unterstützt'); return; }
+      document.getElementById('loading').style.display = 'block';
+      navigator.geolocation.getCurrentPosition(
+        async pos => fetchAndShow(`/wetterdienst/api/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`),
+        error => { document.getElementById('loading').style.display = 'none'; showError(error.message); },
+        { timeout: 10000 }
+      );
+    }
+
+    async function fetchWeatherStats() {
+      const city = document.getElementById('city').value.trim();
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('statsContainer').style.display = 'none';
+      document.getElementById('musicContainer').style.display = 'none';
+      try {
+        let url;
+        if (city) {
+          url = `/wetterdienst/api/stats?city=${encodeURIComponent(city)}&days=7`;
+        } else {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:10000}));
+          url = `/wetterdienst/api/stats?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&days=7`;
+        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        showWeatherStats(data.data);
+      } catch (error) {
+        showError('Statistik konnte nicht geladen werden: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function showWeatherStats(statsData) {
+      document.getElementById('statsContainer').style.display = 'block';
+      const ctx = document.getElementById('weatherChart').getContext('2d');
+      const validData = (statsData || []).filter(item => item.tavg != null);
+      if (!validData.length) { showError('Keine Statistikdaten verfügbar'); return; }
+      const labels   = validData.map(item => new Date(item.date).toLocaleDateString('de-DE', {weekday:'short'}));
+      const temps    = validData.map(item => item.tavg);
+      const minTemps = validData.map(item => item.tmin);
+      const maxTemps = validData.map(item => item.tmax);
+      if (weatherChart) weatherChart.destroy();
+      weatherChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {pointStyle:false, label:'Durchschnitt (°C)', data:temps,    borderColor:'rgba(255,99,132,1)',  backgroundColor:'rgba(255,99,132,0.2)',  tension:0.3, fill:true},
+            {pointStyle:false, label:'Minimum (°C)',      data:minTemps, borderColor:'rgba(54,162,235,1)',  backgroundColor:'rgba(54,162,235,0.2)',  borderDash:[5,5], tension:0.3},
+            {pointStyle:false, label:'Maximum (°C)',      data:maxTemps, borderColor:'rgba(75,192,192,1)',  backgroundColor:'rgba(75,192,192,0.2)',  borderDash:[5,5], tension:0.3}
+          ]
+        },
+        options: { responsive:true, maintainAspectRatio:false,
+          plugins: { title:{display:true, text:'7-Tage-Temperaturverlauf'} },
+          scales: { y:{title:{display:true, text:'Temperatur (°C)'}} }
+        }
+      });
+    }
+
+    async function fetchWeatherMusic() {
+      const weatherDesc = document.querySelector('.lead')?.textContent || 'sonnig';
+      if (!document.querySelector('.weather-card')) { showError('Bitte zuerst das Wetter abrufen'); return; }
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('musicContainer').style.display = 'none';
+      try {
+        const city = document.getElementById('city').value.trim();
+        let url = `/wetterdienst/api/music?weather=${encodeURIComponent(weatherDesc)}`;
+        if (city) url += `&city=${encodeURIComponent(city)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        showWeatherMusic(data.tracks);
+      } catch (error) {
+        showError('Musikempfehlungen konnten nicht geladen werden: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function showWeatherMusic(tracks) {
+      document.getElementById('musicContainer').style.display = 'block';
+      const musicTracks = document.getElementById('musicTracks');
+      musicTracks.innerHTML = '';
+      tracks.forEach(track => {
+        const div = document.createElement('div');
+        div.className = 'list-group-item list-group-item-action';
+        div.innerHTML = `
+          <div class="d-flex align-items-center">
+            <img src="${track.thumbnail}" class="me-3 youtube-thumbnail">
+            <div class="flex-grow-1"><h6 class="mb-1">${track.title}</h6></div>
+            <a href="https://www.youtube.com/watch?v=${track.videoId}" target="_blank" class="btn btn-sm btn-danger ms-2">
+              <i class="fab fa-youtube me-1"></i> Abspielen
+            </a>
+          </div>`;
+        musicTracks.appendChild(div);
+      });
+    }
+
+    async function askAI() {
+      const input = document.getElementById('aiInput');
+      const message = input.value.trim();
+      if (!message) return;
+      addChatMessage(message, 'user');
+      input.value = '';
+      const loadingMsg = addChatMessage('Denke nach...', 'bot');
+      try {
+        const response = await fetch(`/wetterdienst/api/ai-bot?msg=${encodeURIComponent(message)}`);
+        const data = await response.json();
+        loadingMsg.innerHTML = data.reply || 'Keine Antwort erhalten.';
+      } catch (error) {
+        loadingMsg.innerHTML = 'Entschuldigung, der Wetterassistent ist vorübergehend nicht verfügbar.';
+      }
+    }
+
+    function addChatMessage(message, sender) {
+      const history = document.getElementById('aiChatHistory');
+      const div = document.createElement('div');
+      div.classList.add('ai-message', sender === 'user' ? 'user-message' : 'bot-message');
+      div.innerHTML = message;
+      history.appendChild(div);
+      history.scrollTop = history.scrollHeight;
+      if (history.children.length > 10) history.removeChild(history.children[0]);
+      return div;
+    }
+
+    function validateCityInput(city) { return city && /^[a-zA-ZäöüßÄÖÜ\s-]{2,}$/.test(city); }
+
+    function showError(message) {
+      document.getElementById('output').innerHTML = `
+        <div class="col-12">
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>${message}
+          </div>
+        </div>`;
+    }
+
+    function capitalizeFirstLetter(string) { return string.charAt(0).toUpperCase() + string.slice(1); }
+  </script>
+</body>
+</html>
