@@ -1,6 +1,9 @@
 # Wetterdienst Pro
 
 Eine webbasierte Wetteranwendung mit REST API, KI-Chatbot und Musikempfehlungen, entwickelt als Java-Servlet-Anwendung auf Apache Tomcat.
+## Live-Demo
+
+🌐 [Zur Webanwendung](https://tcho.vn-nspace.de/wetterdienst/weather.html)
 
 ---
 
