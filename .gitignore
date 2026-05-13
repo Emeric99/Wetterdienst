@@ -1,0 +1,25 @@
+# Compiled files
+*.class
+*.war
+*.jar
+
+# API-Schlüssel – niemals einchecken!
+.env
+
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
