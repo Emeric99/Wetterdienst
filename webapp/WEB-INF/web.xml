@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  version="6.0">
+
+  <display-name>Wetterdienst Pro</display-name>
+
+  <servlet>
+    <servlet-name>WeatherServlet</servlet-name>
+    <servlet-class>webapps.ROOT.WeatherServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>WeatherServlet</servlet-name>
+    <url-pattern>/weather1</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>WeatherRestServlet</servlet-name>
+    <servlet-class>webapps.ROOT.WeatherRestServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>WeatherRestServlet</servlet-name>
+    <url-pattern>/api/weather</url-pattern>
+    <url-pattern>/api/forecast</url-pattern>
+    <url-pattern>/api/stats</url-pattern>
+    <url-pattern>/api/music</url-pattern>
+    <url-pattern>/health</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>WeatherAIBotServlet</servlet-name>
+    <servlet-class>webapps.ROOT.WeatherAIBotServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>WeatherAIBotServlet</servlet-name>
+    <url-pattern>/api/ai-bot</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>RegisterServlet</servlet-name>
+    <servlet-class>webapps.ROOT.RegisterServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>RegisterServlet</servlet-name>
+    <url-pattern>/register</url-pattern>
+  </servlet-mapping>
+
+</web-app>
